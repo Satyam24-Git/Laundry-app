@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Avatar, useTheme, List, Divider, Button, IconButton } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
@@ -7,10 +7,20 @@ import { useAppStore } from '../store/useAppStore';
 export default function ProfileScreen() {
   const theme = useTheme();
   const { user, addresses, fetchUser, fetchAddresses } = useAppStore();
+  const [refreshing, setRefreshing] = React.useState(false);
 
   useEffect(() => {
     fetchUser();
     fetchAddresses();
+  }, []);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchUser(),
+      fetchAddresses()
+    ]);
+    setRefreshing(false);
   }, []);
 
   const userInitials = user?.full_name ? user.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'U';
@@ -21,7 +31,11 @@ export default function ProfileScreen() {
         <Text variant="titleLarge" style={{ fontWeight: 'bold' }}>Profile</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0093D9']} />}
+      >
         {/* Personal Information */}
         <View style={styles.profileSection}>
           <Avatar.Text size={80} label={userInitials} style={{ backgroundColor: theme.colors.primary }} />
@@ -54,36 +68,6 @@ export default function ProfileScreen() {
           <Button mode="text" icon="plus" style={{ alignSelf: 'flex-start', marginLeft: 8 }}>
             Add New Address
           </Button>
-        </List.Section>
-
-        {/* Payment Methods */}
-        <List.Section style={styles.section}>
-          <List.Subheader style={styles.sectionTitle}>Payment Methods</List.Subheader>
-          <List.Item
-            title="HDFC Credit Card"
-            description="**** **** **** 4589"
-            left={props => <List.Icon {...props} icon="credit-card-outline" />}
-            style={styles.listItem}
-          />
-          <Divider />
-          <List.Item
-            title="UPI / Google Pay"
-            description="john@okaxis"
-            left={props => <List.Icon {...props} icon="cellphone" />}
-            style={styles.listItem}
-          />
-        </List.Section>
-
-        {/* Support */}
-        <List.Section style={styles.section}>
-          <List.Subheader style={styles.sectionTitle}>Support</List.Subheader>
-          <List.Item title="Live Chat" left={props => <List.Icon {...props} icon="chat-outline" />} style={styles.listItem} />
-          <Divider />
-          <List.Item title="Call Support" left={props => <List.Icon {...props} icon="phone-outline" />} style={styles.listItem} />
-          <Divider />
-          <List.Item title="WhatsApp Support" left={props => <List.Icon {...props} icon="whatsapp" />} style={styles.listItem} />
-          <Divider />
-          <List.Item title="FAQs" left={props => <List.Icon {...props} icon="help-circle-outline" />} style={styles.listItem} />
         </List.Section>
 
         <Button mode="contained-tonal" icon="logout" style={styles.logoutBtn} buttonColor="#FFEBEE" textColor="#D32F2F">

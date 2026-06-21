@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Button, Divider, useTheme, SegmentedButtons, Chip, ActivityIndicator } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
@@ -8,9 +8,16 @@ export default function OrdersScreen() {
   const theme = useTheme();
   const [value, setValue] = useState('active');
   const { orders, fetchOrders, loading } = useAppStore();
+  const [refreshing, setRefreshing] = React.useState(false);
 
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
   }, []);
 
   const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
@@ -35,7 +42,11 @@ export default function OrdersScreen() {
         />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0093D9']} />}
+      >
         {loading && orders.length === 0 ? (
           <ActivityIndicator style={{ marginTop: 24 }} />
         ) : displayOrders.length === 0 ? (
@@ -63,7 +74,7 @@ export default function OrdersScreen() {
                 {value === 'active' && (
                   <>
                     <Text variant="labelMedium" style={{ fontWeight: 'bold' }}>Services Selected:</Text>
-                    <Text variant="bodySmall" style={{ color: 'gray' }}>Custom order</Text>
+                    <Text variant="bodySmall" style={{ color: 'gray' }}>{order.order_items?.length ? order.order_items.map((i: any) => i.service?.name).join(', ') : 'Standard order'}</Text>
                     <Divider style={styles.divider} />
                     
                     <View style={styles.timelineContainer}>
@@ -75,7 +86,7 @@ export default function OrdersScreen() {
                         </View>
                       ))}
                     </View>
-                    <Text variant="bodySmall" style={{ color: 'gray', marginTop: 12 }}>Expected Delivery: Tomorrow, 6 PM</Text>
+                    <Text variant="bodySmall" style={{ color: 'gray', marginTop: 12 }}>Expected Delivery: {order.expected_delivery_date ? new Date(order.expected_delivery_date).toLocaleDateString() : 'TBD'}</Text>
                   </>
                 )}
 

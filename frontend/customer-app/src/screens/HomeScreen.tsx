@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions, Image } from 'react-native';
-import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar } from 'react-native-paper';
+import { View, ScrollView, StyleSheet, Dimensions, Image, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar, Portal, Modal, List, Divider, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +15,12 @@ export default function HomeScreen({ navigation }: any) {
     fetchUser, fetchAddresses, fetchServices, fetchPackages, fetchOrders, fetchCoupons, loading 
   } = useAppStore();
 
+  const [locationModalVisible, setLocationModalVisible] = React.useState(false);
+  const [activeAddressId, setActiveAddressId] = React.useState<string | null>(null);
+  const [snackbarVisible, setSnackbarVisible] = React.useState(false);
+  const [copiedCode, setCopiedCode] = React.useState('');
+  const [refreshing, setRefreshing] = React.useState(false);
+
   useEffect(() => {
     fetchUser();
     fetchAddresses();
@@ -23,30 +30,58 @@ export default function HomeScreen({ navigation }: any) {
     fetchCoupons();
   }, []);
 
-  const defaultAddress = addresses.find(a => a.is_default) || addresses[0];
+  const defaultAddress = addresses?.find(a => a.is_default) || (addresses?.length > 0 ? addresses[0] : null);
+  const currentAddress = activeAddressId ? addresses.find(a => a.id === activeAddressId) : defaultAddress;
   const userInitials = user?.full_name ? user.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'U';
   
   const activeOrder = orders.find(o => !['delivered', 'cancelled'].includes(o.status));
   const topCoupon = coupons[0];
 
+  const handleClaim = async (code: string) => {
+    if (!code) return;
+    await Clipboard.setStringAsync(code);
+    setCopiedCode(code);
+    setSnackbarVisible(true);
+  };
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchUser(),
+      fetchAddresses(),
+      fetchServices(),
+      fetchPackages(),
+      fetchOrders(),
+      fetchCoupons()
+    ]);
+    setRefreshing(false);
+  }, []);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0093D9']} />}
+      >
         
         {/* Header Background */}
         <View style={styles.headerBackground}>
           <View style={styles.headerTop}>
-            <View>
-              <Text variant="labelMedium" style={styles.locationLabel}>Location</Text>
-              <View style={styles.locationRow}>
-                <IconButton icon="map-marker" size={16} iconColor="#FFD700" style={styles.iconMargin} />
-                <Text variant="titleMedium" numberOfLines={1} style={styles.locationText}>
-                  {defaultAddress ? `${defaultAddress.city}, ${defaultAddress.state || 'Maharahshatra'}` : 'Pune, Maharahshatra'}
-                </Text>
-                <IconButton icon="chevron-down" size={16} iconColor="#FFD700" style={styles.iconMargin} />
+            <TouchableOpacity onPress={() => setLocationModalVisible(true)} style={styles.locationContainer}>
+              <IconButton icon="map-marker" size={28} iconColor="#FFD700" style={styles.largeIconMargin} />
+              <View style={styles.locationTextContainer}>
+                <View style={styles.locationRow}>
+                  <Text variant="titleMedium" numberOfLines={1} style={styles.locationText}>
+                    {currentAddress ? `${currentAddress.flat_number ? currentAddress.flat_number + ', ' : ''}${currentAddress.building_name ? currentAddress.building_name + ', ' : ''}${currentAddress.area ? currentAddress.area + ', ' : ''}${currentAddress.city}` : 'Select Location'}
+                  </Text>
+                  <IconButton icon="chevron-down" size={20} iconColor="#FFD700" style={styles.iconMargin} />
+                </View>
               </View>
+            </TouchableOpacity>
+            <View style={[styles.avatarPlaceholder, { justifyContent: 'center', alignItems: 'center' }]}>
+              <IconButton icon="bell-outline" size={20} iconColor="white" style={{ margin: 0 }} onPress={() => {}} />
             </View>
-            <View style={styles.avatarPlaceholder} />
           </View>
           
           <Searchbar
@@ -63,51 +98,40 @@ export default function HomeScreen({ navigation }: any) {
         {/* Promotional Banner */}
         <View style={styles.sectionHeader}>
           <Text variant="titleMedium" style={styles.specialTitle}>#SpecialForYou</Text>
-          <Text variant="labelMedium" style={styles.seeAllText}>See All</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('OffersList')}>
+            <Text variant="labelMedium" style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.offersScroll} snapToInterval={(width * 0.85) + 16} decelerationRate="fast" snapToAlignment="start">
-          {coupons.length > 0 ? (
-            coupons.map((coupon, index) => (
-              <LinearGradient key={coupon.id || index} colors={['#3a3a3a', '#909090']} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.bannerCardGradient}>
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>Limited time!</Text>
-                </View>
-                <Text variant="titleMedium" style={styles.bannerTitleWhite}>Get Special Offer</Text>
-                <View style={styles.offerRow}>
-                  <Text variant="labelMedium" style={styles.bannerSubtitleWhite}>Up to</Text>
-                  <View style={styles.percentContainer}>
-                    <Text style={styles.bigPercent}>{coupon.discount_percentage}</Text>
-                    <View style={styles.percentBadge}><Text style={styles.percentBadgeText}>%</Text></View>
-                  </View>
-                </View>
-                <View style={styles.bannerBottomRow}>
-                  <Text style={styles.termsText}>All Services Available | T&C Applied</Text>
-                  <Button mode="contained" compact style={styles.claimButton} labelStyle={styles.claimButtonLabel}>
-                    Claim
-                  </Button>
-                </View>
-              </LinearGradient>
-            ))
-          ) : (
-            <LinearGradient colors={['#3a3a3a', '#909090']} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.bannerCardGradient}>
+          {coupons.map((coupon, index) => (
+            <LinearGradient key={coupon.id || index} colors={['#3a3a3a', '#909090']} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.bannerCardGradient}>
               <View style={styles.badgeContainer}>
                 <Text style={styles.badgeText}>Limited time!</Text>
               </View>
-              <Text variant="titleMedium" style={styles.bannerTitleWhite}>Welcome Offer</Text>
+              <Text variant="titleMedium" style={styles.bannerTitleWhite}>Get Special Offer</Text>
               <View style={styles.offerRow}>
                 <Text variant="labelMedium" style={styles.bannerSubtitleWhite}>Up to</Text>
                 <View style={styles.percentContainer}>
-                  <Text style={styles.bigPercent}>40</Text>
+                  <Text style={styles.bigPercent}>{coupon.discount_percentage}</Text>
                   <View style={styles.percentBadge}><Text style={styles.percentBadgeText}>%</Text></View>
                 </View>
               </View>
               <View style={styles.bannerBottomRow}>
                 <Text style={styles.termsText}>All Services Available | T&C Applied</Text>
-                <Button mode="contained" compact style={styles.claimButton} labelStyle={styles.claimButtonLabel}>
+                <Button 
+                  mode="contained" 
+                  compact 
+                  style={styles.claimButton} 
+                  labelStyle={styles.claimButtonLabel}
+                  onPress={() => handleClaim(coupon.code)}
+                >
                   Claim
                 </Button>
               </View>
             </LinearGradient>
+          ))}
+          {coupons.length === 0 && !loading && (
+             <Text style={{ marginTop: 16, color: 'gray' }}>No offers available at the moment.</Text>
           )}
         </ScrollView>
 
@@ -150,7 +174,9 @@ export default function HomeScreen({ navigation }: any) {
         {/* Services Section */}
         <View style={styles.sectionHeader}>
           <Text variant="titleMedium" style={styles.specialTitle}>Services</Text>
-          <Text variant="labelMedium" style={styles.seeAllText}>See all</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('ServicesList')}>
+            <Text variant="labelMedium" style={styles.seeAllText}>See all</Text>
+          </TouchableOpacity>
         </View>
         {loading && services.length === 0 ? (
            <ActivityIndicator style={{ margin: 16 }} />
@@ -198,6 +224,56 @@ export default function HomeScreen({ navigation }: any) {
         )}
 
       </ScrollView>
+
+      {/* Location Selection Modal */}
+      <Portal>
+        <Modal 
+          visible={locationModalVisible} 
+          onDismiss={() => setLocationModalVisible(false)} 
+          contentContainerStyle={styles.modalContainer}
+        >
+          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Choose Location</Text>
+          {addresses.map((addr, index) => (
+            <React.Fragment key={addr.id || index}>
+              <List.Item
+                title={addr.title}
+                description={`${addr.flat_number}, ${addr.building_name}, ${addr.area}, ${addr.city}`}
+                left={props => <List.Icon {...props} icon={addr.title.toLowerCase() === 'home' ? 'home-outline' : 'office-building-outline'} />}
+                right={props => (currentAddress?.id === addr.id ? <List.Icon {...props} icon="check" color={theme.colors.primary} /> : null)}
+                onPress={() => {
+                  setActiveAddressId(addr.id);
+                  setLocationModalVisible(false);
+                }}
+                style={{ paddingLeft: 0 }}
+              />
+              {index < addresses.length - 1 && <Divider />}
+            </React.Fragment>
+          ))}
+          {addresses.length === 0 && (
+            <Text style={{ paddingVertical: 16, color: 'gray' }}>No addresses found.</Text>
+          )}
+          <Button 
+            mode="contained-tonal" 
+            icon="plus" 
+            style={{ marginTop: 16 }}
+            onPress={() => {
+              setLocationModalVisible(false);
+              navigation.navigate('Profile');
+            }}
+          >
+            Add New Address
+          </Button>
+        </Modal>
+      </Portal>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={2500}
+        style={{ marginBottom: 90, backgroundColor: '#F0F0F0', borderRadius: 16, elevation: 5 }}
+      >
+        <Text style={{ color: '#333', fontWeight: 'bold', textAlign: 'center', fontSize: 16 }}>🎉 Woohoo! Code Copied! ✨</Text>
+      </Snackbar>
     </SafeAreaView>
   );
 }
@@ -207,11 +283,11 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 24 },
   headerBackground: {
     backgroundColor: '#0093D9',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 24,
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   headerTop: {
     flexDirection: 'row',
@@ -219,12 +295,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  locationContainer: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  locationTextContainer: { flex: 1, justifyContent: 'center' },
   locationLabel: { color: 'rgba(255,255,255,0.8)' },
   locationRow: { flexDirection: 'row', alignItems: 'center' },
-  iconMargin: { margin: 0, padding: 0, width: 20, height: 20 },
-  locationText: { color: 'white', fontWeight: 'bold' },
+  iconMargin: { margin: 0, padding: 0, width: 24, height: 24 },
+  largeIconMargin: { margin: 0, marginRight: 8, padding: 0, width: 32, height: 32 },
+  locationText: { color: 'white', fontWeight: '500', flexShrink: 1 },
   avatarPlaceholder: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)' },
-  searchBar: { backgroundColor: 'white', borderRadius: 12, height: 48 },
+  searchBar: { backgroundColor: 'white', borderRadius: 30, height: 48 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
   specialTitle: { fontWeight: 'bold', fontSize: 18 },
   seeAllText: { color: '#0093D9' },
@@ -241,13 +320,13 @@ const styles = StyleSheet.create({
   percentBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
   bannerBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8 },
   termsText: { color: 'white', fontSize: 8, opacity: 0.8 },
-  claimButton: { backgroundColor: '#FFD700', borderRadius: 20 },
+  claimButton: { backgroundColor: '#FFD700', borderRadius: 20, paddingHorizontal: 16 },
   claimButtonLabel: { color: 'black', fontSize: 12, fontWeight: 'bold', marginVertical: 4 },
   paginationDots: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0E0E0', marginHorizontal: 4 },
   activeDot: { backgroundColor: '#0093D9' },
   quickActions: { paddingHorizontal: 16, marginTop: 16 },
-  bookButton: { borderRadius: 12 },
+  bookButton: { borderRadius: 30 },
   sectionTitle: { paddingHorizontal: 16, marginTop: 24, marginBottom: 12, fontWeight: 'bold', fontSize: 18 },
   activeOrderCard: { marginHorizontal: 16, borderRadius: 12, backgroundColor: '#f8f9fa' },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -277,5 +356,6 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   packagesScroll: { paddingLeft: 16 },
-  packageCard: { width: 160, marginRight: 16, borderRadius: 16, backgroundColor: 'white' }
+  packageCard: { width: 160, marginRight: 16, borderRadius: 16, backgroundColor: 'white' },
+  modalContainer: { backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 16 }
 });

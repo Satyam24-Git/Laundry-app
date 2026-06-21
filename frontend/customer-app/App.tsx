@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { MD3LightTheme, PaperProvider, configureFonts } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import AppNavigator from './src/navigation/AppNavigator';
+import RootNavigator from './src/navigation/RootNavigator';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter';
 import { View } from 'react-native';
 
@@ -35,7 +35,7 @@ export default function App() {
     <SafeAreaProvider>
       <PaperProvider theme={theme}>
         <NavigationContainer>
-          <AppNavigator />
+          <RootNavigator />
         </NavigationContainer>
       </PaperProvider>
     </SafeAreaProvider>
