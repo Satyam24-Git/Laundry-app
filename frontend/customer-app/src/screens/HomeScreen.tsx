@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
-import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator } from 'react-native-paper';
+import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
@@ -32,45 +33,83 @@ export default function HomeScreen({ navigation }: any) {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Avatar.Text size={40} label={userInitials} style={{ backgroundColor: theme.colors.primary }} />
-            <View style={styles.headerTextContainer}>
-              <Text variant="labelMedium" style={{ color: 'gray' }}>Good Morning,</Text>
-              <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{user?.full_name || 'Guest User'}</Text>
+        {/* Header Background */}
+        <View style={styles.headerBackground}>
+          <View style={styles.headerTop}>
+            <View>
+              <Text variant="labelMedium" style={styles.locationLabel}>Location</Text>
+              <View style={styles.locationRow}>
+                <IconButton icon="map-marker" size={16} iconColor="#FFD700" style={styles.iconMargin} />
+                <Text variant="titleMedium" numberOfLines={1} style={styles.locationText}>
+                  {defaultAddress ? `${defaultAddress.city}, ${defaultAddress.state || 'Maharahshatra'}` : 'Pune, Maharahshatra'}
+                </Text>
+                <IconButton icon="chevron-down" size={16} iconColor="#FFD700" style={styles.iconMargin} />
+              </View>
             </View>
+            <View style={styles.avatarPlaceholder} />
           </View>
-          <View style={styles.headerRight}>
-            <View style={styles.locationContainer}>
-              <IconButton icon="map-marker" size={16} iconColor={theme.colors.primary} style={styles.iconMargin} />
-              <Text variant="labelSmall" numberOfLines={1} style={styles.locationText}>
-                {defaultAddress ? `${defaultAddress.flat_number}, ${defaultAddress.building_name}` : 'No Address Set'}
-              </Text>
-            </View>
-            <IconButton icon="bell-outline" size={24} onPress={() => {}} />
-          </View>
+          
+          <Searchbar
+            placeholder="Search Service"
+            onChangeText={() => {}}
+            value=""
+            style={styles.searchBar}
+            inputStyle={{ minHeight: 0, fontSize: 14 }}
+            iconColor="#4285F4"
+            elevation={0}
+          />
         </View>
 
         {/* Promotional Banner */}
-        {topCoupon ? (
-          <Card style={styles.bannerCard} mode="elevated">
-            <Card.Content>
-              <Text variant="titleLarge" style={styles.bannerTitle}>{topCoupon.discount_percentage}% OFF</Text>
-              <Text variant="bodyMedium" style={styles.bannerSubtitle}>Use code {topCoupon.code} up to ₹{topCoupon.max_discount_amount} off!</Text>
-              <Button mode="contained" compact style={styles.bannerButton} labelStyle={{ fontSize: 12 }}>
-                Claim Now
-              </Button>
-            </Card.Content>
-          </Card>
-        ) : (
-          <Card style={styles.bannerCard} mode="elevated">
-            <Card.Content>
-              <Text variant="titleLarge" style={styles.bannerTitle}>Welcome!</Text>
-              <Text variant="bodyMedium" style={styles.bannerSubtitle}>We pick up, clean, and deliver.</Text>
-            </Card.Content>
-          </Card>
-        )}
+        <View style={styles.sectionHeader}>
+          <Text variant="titleMedium" style={styles.specialTitle}>#SpecialForYou</Text>
+          <Text variant="labelMedium" style={styles.seeAllText}>See All</Text>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.offersScroll} snapToInterval={(width * 0.85) + 16} decelerationRate="fast" snapToAlignment="start">
+          {coupons.length > 0 ? (
+            coupons.map((coupon, index) => (
+              <LinearGradient key={coupon.id || index} colors={['#3a3a3a', '#909090']} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.bannerCardGradient}>
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>Limited time!</Text>
+                </View>
+                <Text variant="titleMedium" style={styles.bannerTitleWhite}>Get Special Offer</Text>
+                <View style={styles.offerRow}>
+                  <Text variant="labelMedium" style={styles.bannerSubtitleWhite}>Up to</Text>
+                  <View style={styles.percentContainer}>
+                    <Text style={styles.bigPercent}>{coupon.discount_percentage}</Text>
+                    <View style={styles.percentBadge}><Text style={styles.percentBadgeText}>%</Text></View>
+                  </View>
+                </View>
+                <View style={styles.bannerBottomRow}>
+                  <Text style={styles.termsText}>All Services Available | T&C Applied</Text>
+                  <Button mode="contained" compact style={styles.claimButton} labelStyle={styles.claimButtonLabel}>
+                    Claim
+                  </Button>
+                </View>
+              </LinearGradient>
+            ))
+          ) : (
+            <LinearGradient colors={['#3a3a3a', '#909090']} start={{x: 0, y: 0}} end={{x: 1, y: 1}} style={styles.bannerCardGradient}>
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeText}>Limited time!</Text>
+              </View>
+              <Text variant="titleMedium" style={styles.bannerTitleWhite}>Welcome Offer</Text>
+              <View style={styles.offerRow}>
+                <Text variant="labelMedium" style={styles.bannerSubtitleWhite}>Up to</Text>
+                <View style={styles.percentContainer}>
+                  <Text style={styles.bigPercent}>40</Text>
+                  <View style={styles.percentBadge}><Text style={styles.percentBadgeText}>%</Text></View>
+                </View>
+              </View>
+              <View style={styles.bannerBottomRow}>
+                <Text style={styles.termsText}>All Services Available | T&C Applied</Text>
+                <Button mode="contained" compact style={styles.claimButton} labelStyle={styles.claimButtonLabel}>
+                  Claim
+                </Button>
+              </View>
+            </LinearGradient>
+          )}
+        </ScrollView>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -160,32 +199,50 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { paddingBottom: 24 },
-  header: {
+  headerBackground: {
+    backgroundColor: '#0093D9',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
+    marginBottom: 16,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerTextContainer: { marginLeft: 12 },
-  headerRight: { alignItems: 'flex-end' },
-  locationContainer: { flexDirection: 'row', alignItems: 'center', maxWidth: 120 },
+  locationLabel: { color: 'rgba(255,255,255,0.8)' },
+  locationRow: { flexDirection: 'row', alignItems: 'center' },
   iconMargin: { margin: 0, padding: 0, width: 20, height: 20 },
-  locationText: { color: 'gray' },
-  bannerCard: {
-    marginHorizontal: 16,
-    backgroundColor: '#6200ee',
-    borderRadius: 16,
-  },
-  bannerTitle: { color: 'white', fontWeight: 'bold' },
-  bannerSubtitle: { color: 'white', marginBottom: 12, opacity: 0.9 },
-  bannerButton: { backgroundColor: 'white', alignSelf: 'flex-start' },
-  quickActions: { paddingHorizontal: 16, marginTop: 24 },
+  locationText: { color: 'white', fontWeight: 'bold' },
+  avatarPlaceholder: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)' },
+  searchBar: { backgroundColor: 'white', borderRadius: 12, height: 48 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
+  specialTitle: { fontWeight: 'bold', fontSize: 18 },
+  seeAllText: { color: '#0093D9' },
+  offersScroll: { paddingLeft: 16 },
+  bannerCardGradient: { width: width * 0.85, borderRadius: 16, padding: 16, marginRight: 16 },
+  badgeContainer: { backgroundColor: 'white', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginBottom: 12 },
+  badgeText: { fontSize: 10, fontWeight: 'bold', color: 'black' },
+  bannerTitleWhite: { color: 'white', fontWeight: 'bold', marginBottom: 4 },
+  offerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  bannerSubtitleWhite: { color: 'rgba(255,255,255,0.8)', marginRight: 8 },
+  percentContainer: { flexDirection: 'row', alignItems: 'flex-start' },
+  bigPercent: { fontSize: 36, fontWeight: 'bold', color: 'white', lineHeight: 40 },
+  percentBadge: { backgroundColor: '#0093D9', borderRadius: 10, width: 16, height: 16, alignItems: 'center', justifyContent: 'center', position: 'absolute', right: -12, bottom: 4 },
+  percentBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
+  bannerBottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 8 },
+  termsText: { color: 'white', fontSize: 8, opacity: 0.8 },
+  claimButton: { backgroundColor: '#FFD700', borderRadius: 20 },
+  claimButtonLabel: { color: 'black', fontSize: 12, fontWeight: 'bold', marginVertical: 4 },
+  paginationDots: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#E0E0E0', marginHorizontal: 4 },
+  activeDot: { backgroundColor: '#0093D9' },
+  quickActions: { paddingHorizontal: 16, marginTop: 16 },
   bookButton: { borderRadius: 12 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 16 },
-  sectionTitle: { paddingHorizontal: 16, marginTop: 24, marginBottom: 12, fontWeight: 'bold' },
+  sectionTitle: { paddingHorizontal: 16, marginTop: 24, marginBottom: 12, fontWeight: 'bold', fontSize: 18 },
   activeOrderCard: { marginHorizontal: 16, borderRadius: 12, backgroundColor: '#f8f9fa' },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   trackButton: { marginTop: 12, alignSelf: 'flex-start', borderRadius: 8 },

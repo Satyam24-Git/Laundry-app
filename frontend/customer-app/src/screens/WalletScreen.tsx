@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { padding: 16, paddingBottom: 8 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
-  walletCard: { backgroundColor: '#6200ee', borderRadius: 16, marginBottom: 24 },
+  walletCard: { backgroundColor: '#0093D9', borderRadius: 16, marginBottom: 24 },
   addMoneyBtn: { alignSelf: 'flex-start', borderRadius: 12, marginTop: 8 },
   sectionTitle: { fontWeight: 'bold', marginBottom: 12 },
   couponCard: { borderRadius: 12, backgroundColor: 'white', marginBottom: 12, borderStyle: 'dashed' },

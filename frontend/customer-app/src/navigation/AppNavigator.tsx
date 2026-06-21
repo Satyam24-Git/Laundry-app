@@ -22,7 +22,7 @@ export default function AppNavigator() {
           else if (route.name === 'Profile') iconName = 'account';
           return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#6200ee',
+        tabBarActiveTintColor: '#0093D9',
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
       })}
