@@ -8,17 +8,25 @@ const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }: any) {
   const theme = useTheme();
-  const { user, addresses, services, packages, fetchUser, fetchAddresses, fetchServices, fetchPackages, loading } = useAppStore();
+  const { 
+    user, addresses, services, packages, orders, coupons,
+    fetchUser, fetchAddresses, fetchServices, fetchPackages, fetchOrders, fetchCoupons, loading 
+  } = useAppStore();
 
   useEffect(() => {
     fetchUser();
     fetchAddresses();
     fetchServices();
     fetchPackages();
+    fetchOrders();
+    fetchCoupons();
   }, []);
 
   const defaultAddress = addresses.find(a => a.is_default) || addresses[0];
   const userInitials = user?.full_name ? user.full_name.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'U';
+  
+  const activeOrder = orders.find(o => !['delivered', 'cancelled'].includes(o.status));
+  const topCoupon = coupons[0];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -45,15 +53,24 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Promotional Banner */}
-        <Card style={styles.bannerCard} mode="elevated">
-          <Card.Content>
-            <Text variant="titleLarge" style={styles.bannerTitle}>50% OFF</Text>
-            <Text variant="bodyMedium" style={styles.bannerSubtitle}>On your first Wash & Fold order!</Text>
-            <Button mode="contained" compact style={styles.bannerButton} labelStyle={{ fontSize: 12 }}>
-              Claim Now
-            </Button>
-          </Card.Content>
-        </Card>
+        {topCoupon ? (
+          <Card style={styles.bannerCard} mode="elevated">
+            <Card.Content>
+              <Text variant="titleLarge" style={styles.bannerTitle}>{topCoupon.discount_percentage}% OFF</Text>
+              <Text variant="bodyMedium" style={styles.bannerSubtitle}>Use code {topCoupon.code} up to ₹{topCoupon.max_discount_amount} off!</Text>
+              <Button mode="contained" compact style={styles.bannerButton} labelStyle={{ fontSize: 12 }}>
+                Claim Now
+              </Button>
+            </Card.Content>
+          </Card>
+        ) : (
+          <Card style={styles.bannerCard} mode="elevated">
+            <Card.Content>
+              <Text variant="titleLarge" style={styles.bannerTitle}>Welcome!</Text>
+              <Text variant="bodyMedium" style={styles.bannerSubtitle}>We pick up, clean, and deliver.</Text>
+            </Card.Content>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -69,19 +86,27 @@ export default function HomeScreen({ navigation }: any) {
         </View>
 
         {/* Active Order Widget */}
-        <Text variant="titleMedium" style={styles.sectionTitle}>Active Order</Text>
-        <Card style={styles.activeOrderCard}>
-          <Card.Content>
-            <View style={styles.orderHeader}>
-              <Text variant="labelLarge" style={{ fontWeight: 'bold' }}>Order #XL-8492</Text>
-              <Chip icon="progress-clock" textStyle={{ fontSize: 10 }} style={{ backgroundColor: '#FFF3E0' }}>Washing</Chip>
-            </View>
-            <Text variant="bodySmall" style={{ color: 'gray', marginTop: 4 }}>Estimated Delivery: Tomorrow, 6 PM</Text>
-            <Button mode="outlined" style={styles.trackButton} compact onPress={() => navigation.navigate('Orders')}>
-              Track Order
-            </Button>
-          </Card.Content>
-        </Card>
+        {activeOrder && (
+          <View>
+            <Text variant="titleMedium" style={styles.sectionTitle}>Active Order</Text>
+            <Card style={styles.activeOrderCard}>
+              <Card.Content>
+                <View style={styles.orderHeader}>
+                  <Text variant="labelLarge" style={{ fontWeight: 'bold' }}>Order #{activeOrder.id.substring(0, 8).toUpperCase()}</Text>
+                  <Chip icon="progress-clock" textStyle={{ fontSize: 10 }} style={{ backgroundColor: '#FFF3E0' }}>
+                    {activeOrder.status.replace('_', ' ').toUpperCase()}
+                  </Chip>
+                </View>
+                <Text variant="bodySmall" style={{ color: 'gray', marginTop: 4 }}>
+                  Total: ₹{activeOrder.total_amount} | Pickup: {activeOrder.pickup_date}
+                </Text>
+                <Button mode="outlined" style={styles.trackButton} compact onPress={() => navigation.navigate('Orders')}>
+                  Track Order
+                </Button>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
 
         {/* Services Section */}
         <View style={styles.sectionHeader}>
