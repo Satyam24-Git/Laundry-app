@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, Dimensions, Image } from 'react-native';
 import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
@@ -149,18 +149,24 @@ export default function HomeScreen({ navigation }: any) {
 
         {/* Services Section */}
         <View style={styles.sectionHeader}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>Our Services</Text>
+          <Text variant="titleMedium" style={styles.specialTitle}>Services</Text>
+          <Text variant="labelMedium" style={styles.seeAllText}>See all</Text>
         </View>
         {loading && services.length === 0 ? (
            <ActivityIndicator style={{ margin: 16 }} />
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
             {services.map((service, index) => (
-              <Surface key={service.id || index} style={styles.serviceItem} elevation={1}>
-                {/* Fallback to tshirt icon since dynamic icons from DB aren't mapped yet */}
-                <IconButton icon="tshirt-crew" size={32} iconColor={theme.colors.primary} />
-                <Text variant="labelSmall" style={styles.serviceText}>{service.name}</Text>
-              </Surface>
+              <View key={service.id || index} style={styles.serviceItemContainer}>
+                <View style={styles.serviceIconCircle}>
+                  {service.icon_url ? (
+                    <Image source={{ uri: service.icon_url }} style={styles.serviceImage} resizeMode="contain" />
+                  ) : (
+                    <IconButton icon="washing-machine" size={32} iconColor="#0093D9" style={{ margin: 0 }} />
+                  )}
+                </View>
+                <Text variant="labelSmall" style={styles.serviceText} numberOfLines={1}>{service.name}</Text>
+              </View>
             ))}
             {/* Fallback UI if DB is empty */}
             {services.length === 0 && (
@@ -247,16 +253,29 @@ const styles = StyleSheet.create({
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   trackButton: { marginTop: 12, alignSelf: 'flex-start', borderRadius: 8 },
   servicesScroll: { paddingLeft: 16 },
-  serviceItem: {
+  serviceItemContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    width: 80,
-    height: 90,
-    marginRight: 12,
-    borderRadius: 16,
-    backgroundColor: 'white',
+    width: 72,
+    marginRight: 16,
   },
-  serviceText: { textAlign: 'center', fontSize: 10, paddingHorizontal: 4 },
+  serviceIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  serviceImage: {
+    width: 32,
+    height: 32,
+  },
+  serviceText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#333',
+  },
   packagesScroll: { paddingLeft: 16 },
   packageCard: { width: 160, marginRight: 16, borderRadius: 16, backgroundColor: 'white' }
 });
