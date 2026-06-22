@@ -1,10 +1,13 @@
 import React, { useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Dimensions, Image, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar, Portal, Modal, List, Divider, Snackbar } from 'react-native-paper';
+import { Text, Card, Button, Avatar, IconButton, useTheme, Chip, Surface, ActivityIndicator, Searchbar, Portal, Modal, List, Divider, Snackbar, TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MapWrapper } from '../components/MapWrapper';
+import * as Location from 'expo-location';
+import { apiClient } from '../api/client';
 
 const { width } = Dimensions.get('window');
 
@@ -18,6 +21,110 @@ export default function HomeScreen({ navigation }: any) {
   const [locationModalVisible, setLocationModalVisible] = React.useState(false);
   const [activeAddressId, setActiveAddressId] = React.useState<string | null>(null);
   const [snackbarVisible, setSnackbarVisible] = React.useState(false);
+  
+  const [isAddingAddress, setIsAddingAddress] = React.useState(false);
+  const [mapRegion, setMapRegion] = React.useState({
+    latitude: 28.6139,
+    longitude: 77.2090, // default new delhi
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
+  const [selectedCoordinate, setSelectedCoordinate] = React.useState<any>(null);
+  
+  const [newAddress, setNewAddress] = React.useState({
+    title: '',
+    flat_number: '',
+    building_name: '',
+    area: '',
+    city: '',
+    pincode: '',
+    is_default: false,
+  });
+  const [isSavingAddress, setIsSavingAddress] = React.useState(false);
+  const [editingAddressId, setEditingAddressId] = React.useState<string | null>(null);
+
+  const startEditingAddress = (addr: any) => {
+    setEditingAddressId(addr.id);
+    setNewAddress({
+      title: addr.title || '',
+      flat_number: addr.flat_number || '',
+      building_name: addr.building_name || '',
+      area: addr.area || '',
+      city: addr.city || '',
+      pincode: addr.pincode || '',
+      is_default: addr.is_default || false,
+    });
+    setIsAddingAddress(true);
+  };
+
+  const getCurrentLocation = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Allow location access to use this feature.');
+      return;
+    }
+    try {
+      let location = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setMapRegion({ ...coords, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+      setSelectedCoordinate(coords);
+      handleReverseGeocode(coords);
+    } catch (e) {
+      console.log('Error getting location', e);
+    }
+  };
+
+  const handleReverseGeocode = async (coords: any) => {
+    try {
+      const addressResp = await Location.reverseGeocodeAsync(coords);
+      if (addressResp && addressResp.length > 0) {
+        const addr = addressResp[0];
+        setNewAddress(prev => ({
+          ...prev,
+          area: addr.district || addr.subregion || addr.city || prev.area,
+          city: addr.city || addr.region || prev.city,
+          pincode: addr.postalCode || prev.pincode,
+          building_name: addr.street || addr.name || prev.building_name,
+        }));
+      }
+    } catch (e) {
+      console.log('Geocoding error', e);
+    }
+  };
+
+  const handleMapPress = (e: any) => {
+    const coords = e.nativeEvent.coordinate;
+    setSelectedCoordinate(coords);
+    handleReverseGeocode(coords);
+  };
+
+  const saveInlineAddress = async () => {
+    if (!newAddress.title || !newAddress.area || !newAddress.city) {
+      Alert.alert('Error', 'Please fill at least Title, Area, and City');
+      return;
+    }
+    setIsSavingAddress(true);
+    try {
+      if (editingAddressId) {
+        await apiClient.put(`/users/me/addresses/${editingAddressId}`, newAddress);
+      } else {
+        await apiClient.post('/users/me/addresses', newAddress);
+      }
+      await fetchAddresses();
+      Alert.alert('Success', 'Address saved successfully');
+      setIsAddingAddress(false);
+      setEditingAddressId(null);
+      setNewAddress({ title: '', flat_number: '', building_name: '', area: '', city: '', pincode: '', is_default: false });
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.detail || 'Failed to save address');
+    } finally {
+      setIsSavingAddress(false);
+    }
+  };
+
   const [copiedCode, setCopiedCode] = React.useState('');
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -88,7 +195,7 @@ export default function HomeScreen({ navigation }: any) {
             placeholder="Search Service"
             onChangeText={() => {}}
             value=""
-            style={styles.searchBar}
+            style={[styles.searchBar, { backgroundColor: theme.colors.surface }]}
             inputStyle={{ minHeight: 0, fontSize: 14 }}
             iconColor="#4285F4"
             elevation={0}
@@ -131,7 +238,7 @@ export default function HomeScreen({ navigation }: any) {
             </LinearGradient>
           ))}
           {coupons.length === 0 && !loading && (
-             <Text style={{ marginTop: 16, color: 'gray' }}>No offers available at the moment.</Text>
+             <Text style={{ marginTop: 16, color: theme.colors.onSurfaceVariant }}>No offers available at the moment.</Text>
           )}
         </ScrollView>
 
@@ -160,7 +267,7 @@ export default function HomeScreen({ navigation }: any) {
                     {activeOrder.status.replace('_', ' ').toUpperCase()}
                   </Chip>
                 </View>
-                <Text variant="bodySmall" style={{ color: 'gray', marginTop: 4 }}>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                   Total: ₹{activeOrder.total_amount} | Pickup: {activeOrder.pickup_date}
                 </Text>
                 <Button mode="outlined" style={styles.trackButton} compact onPress={() => navigation.navigate('Orders')}>
@@ -181,24 +288,44 @@ export default function HomeScreen({ navigation }: any) {
         {loading && services.length === 0 ? (
            <ActivityIndicator style={{ margin: 16 }} />
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.servicesScroll}>
-            {services.map((service, index) => (
-              <View key={service.id || index} style={styles.serviceItemContainer}>
-                <View style={styles.serviceIconCircle}>
-                  {service.icon_url ? (
-                    <Image source={{ uri: service.icon_url }} style={styles.serviceImage} resizeMode="contain" />
-                  ) : (
-                    <IconButton icon="washing-machine" size={32} iconColor="#0093D9" style={{ margin: 0 }} />
-                  )}
+          <View style={styles.servicesGrid}>
+            {services.map((service, index) => {
+              let imageUrl = service.icon_url;
+              if (!imageUrl) {
+                const n = service.name.toLowerCase();
+                if (n.includes('fold')) imageUrl = "https://images.unsplash.com/photo-1582735689369-4fe89db7114c?q=80&w=600&auto=format&fit=crop";
+                else if (n.includes('iron') || n.includes('press')) imageUrl = "https://images.unsplash.com/photo-1517677129300-07b130802f46?q=80&w=600&auto=format&fit=crop";
+                else if (n.includes('dry clean')) imageUrl = "https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?q=80&w=600&auto=format&fit=crop";
+                else if (n.includes('shoe')) imageUrl = "https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?q=80&w=600&auto=format&fit=crop";
+                else if (n.includes('blazer') || n.includes('suit')) imageUrl = "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?q=80&w=600&auto=format&fit=crop";
+                else if (n.includes('blanket') || n.includes('household')) imageUrl = "https://images.unsplash.com/photo-1583847268964-b28e515d9cc0?q=80&w=600&auto=format&fit=crop";
+                else imageUrl = "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?q=80&w=600&auto=format&fit=crop";
+              }
+              return (
+              <TouchableOpacity 
+                key={service.id || index} 
+                style={[styles.serviceCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => navigation.navigate('ServicesList')}
+              >
+                {imageUrl ? (
+                  <Image source={{ uri: imageUrl }} style={styles.serviceCardImage} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.serviceCardImage, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.surfaceVariant }]}>
+                    <IconButton icon="washing-machine" size={48} iconColor="#0093D9" style={{ margin: 0 }} />
+                  </View>
+                )}
+                <View style={styles.serviceCardContent}>
+                  <Text variant="titleSmall" style={{ fontWeight: 'bold', textAlign: 'center', color: theme.colors.onSurface }} numberOfLines={1}>
+                    {service.name}
+                  </Text>
                 </View>
-                <Text variant="labelSmall" style={styles.serviceText} numberOfLines={1}>{service.name}</Text>
-              </View>
-            ))}
+              </TouchableOpacity>
+            )})}
             {/* Fallback UI if DB is empty */}
             {services.length === 0 && (
-              <Text style={{ marginLeft: 16, color: 'gray' }}>No services available.</Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant, paddingBottom: 16 }}>No services available.</Text>
             )}
-          </ScrollView>
+          </View>
         )}
 
         {/* Laundry Packages */}
@@ -208,17 +335,17 @@ export default function HomeScreen({ navigation }: any) {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.packagesScroll}>
             {packages.map((pkg, index) => (
-              <Card key={pkg.id || index} style={styles.packageCard} mode="outlined">
+              <Card key={pkg.id || index} style={[styles.packageCard, { backgroundColor: theme.colors.surface }]} mode="outlined">
                 <Card.Content>
                   <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{pkg.name}</Text>
-                  <Text variant="bodySmall" style={{ color: 'gray', marginVertical: 4 }}>{pkg.description || 'Standard load'}</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginVertical: 4 }}>{pkg.description || 'Standard load'}</Text>
                   <Text variant="titleLarge" style={{ marginTop: 8, color: theme.colors.primary, fontWeight: 'bold' }}>₹{pkg.price}</Text>
                 </Card.Content>
               </Card>
             ))}
             {/* Fallback UI if DB is empty */}
             {packages.length === 0 && (
-              <Text style={{ marginLeft: 16, color: 'gray' }}>No packages available.</Text>
+              <Text style={{ marginLeft: 16, color: theme.colors.onSurfaceVariant }}>No packages available.</Text>
             )}
           </ScrollView>
         )}
@@ -229,40 +356,153 @@ export default function HomeScreen({ navigation }: any) {
       <Portal>
         <Modal 
           visible={locationModalVisible} 
-          onDismiss={() => setLocationModalVisible(false)} 
-          contentContainerStyle={styles.modalContainer}
+          onDismiss={() => {
+            setLocationModalVisible(false);
+            if(isAddingAddress) setIsAddingAddress(false);
+          }} 
+          contentContainerStyle={[styles.modalContainer, { backgroundColor: theme.colors.surface }, isAddingAddress ? styles.mapModalContainer : {}]}
         >
-          <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Choose Location</Text>
-          {addresses.map((addr, index) => (
-            <React.Fragment key={addr.id || index}>
-              <List.Item
-                title={addr.title}
-                description={`${addr.flat_number}, ${addr.building_name}, ${addr.area}, ${addr.city}`}
-                left={props => <List.Icon {...props} icon={addr.title.toLowerCase() === 'home' ? 'home-outline' : 'office-building-outline'} />}
-                right={props => (currentAddress?.id === addr.id ? <List.Icon {...props} icon="check" color={theme.colors.primary} /> : null)}
+          {!isAddingAddress ? (
+            <View>
+              <Text variant="titleMedium" style={{ fontWeight: 'bold', marginBottom: 16 }}>Choose Location</Text>
+              {addresses.map((addr, index) => (
+                <React.Fragment key={addr.id || index}>
+                  <List.Item
+                    title={addr.title}
+                    description={`${addr.flat_number}, ${addr.building_name}, ${addr.area}, ${addr.city}`}
+                    left={props => <List.Icon {...props} icon={addr.title.toLowerCase() === 'home' ? 'home-outline' : 'office-building-outline'} />}
+                    right={props => (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <IconButton 
+                          icon="pencil-outline" 
+                          size={20} 
+                          onPress={() => startEditingAddress(addr)} 
+                          style={{ margin: 0, marginRight: currentAddress?.id === addr.id ? 8 : 0 }} 
+                        />
+                        {currentAddress?.id === addr.id && <List.Icon {...props} icon="check" color={theme.colors.primary} style={{ margin: 0 }} />}
+                      </View>
+                    )}
+                    onPress={() => {
+                      setActiveAddressId(addr.id);
+                      setLocationModalVisible(false);
+                    }}
+                    style={{ paddingLeft: 0 }}
+                  />
+                  {index < addresses.length - 1 && <Divider />}
+                </React.Fragment>
+              ))}
+              {addresses.length === 0 && (
+                <Text style={{ paddingVertical: 16, color: theme.colors.onSurfaceVariant }}>No addresses found.</Text>
+              )}
+              <Button 
+                mode="contained-tonal" 
+                icon="plus" 
+                style={{ marginTop: 16 }}
                 onPress={() => {
-                  setActiveAddressId(addr.id);
-                  setLocationModalVisible(false);
+                  setIsAddingAddress(true);
+                  getCurrentLocation();
                 }}
-                style={{ paddingLeft: 0 }}
-              />
-              {index < addresses.length - 1 && <Divider />}
-            </React.Fragment>
-          ))}
-          {addresses.length === 0 && (
-            <Text style={{ paddingVertical: 16, color: 'gray' }}>No addresses found.</Text>
+              >
+                Add New Address
+              </Button>
+            </View>
+          ) : (
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <IconButton 
+                  icon="arrow-left" 
+                  size={20} 
+                  onPress={() => {
+                    setIsAddingAddress(false);
+                    setEditingAddressId(null);
+                    setNewAddress({ title: '', flat_number: '', building_name: '', area: '', city: '', pincode: '', is_default: false });
+                  }} 
+                  style={{ margin: 0, marginRight: 8 }} 
+                />
+                <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>{editingAddressId ? 'Edit Address' : 'Add Address'}</Text>
+              </View>
+              <View style={styles.mapContainer}>
+                <MapWrapper
+                  style={styles.map}
+                  region={mapRegion}
+                  onRegionChangeComplete={setMapRegion}
+                  onPress={handleMapPress}
+                  selectedCoordinate={selectedCoordinate}
+                />
+                <IconButton
+                  icon="crosshairs-gps"
+                  mode="contained"
+                  containerColor="white"
+                  iconColor="#0093D9"
+                  size={24}
+                  style={styles.myLocationButton}
+                  onPress={getCurrentLocation}
+                />
+              </View>
+              <ScrollView style={{ marginTop: 12 }} showsVerticalScrollIndicator={false}>
+                <TextInput
+                  mode="outlined"
+                  label="Title (e.g. Home, Office)"
+                  value={newAddress.title}
+                  onChangeText={text => setNewAddress({...newAddress, title: text})}
+                  style={[styles.input, { backgroundColor: theme.colors.surface }]}
+                  dense
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Flat / House Number"
+                  value={newAddress.flat_number}
+                  onChangeText={text => setNewAddress({...newAddress, flat_number: text})}
+                  style={[styles.input, { backgroundColor: theme.colors.surface }]}
+                  dense
+                />
+                <TextInput
+                  mode="outlined"
+                  label="Building Name / Street"
+                  value={newAddress.building_name}
+                  onChangeText={text => setNewAddress({...newAddress, building_name: text})}
+                  style={[styles.input, { backgroundColor: theme.colors.surface }]}
+                  dense
+                />
+                <View style={{ flexDirection: 'row' }}>
+                  <TextInput
+                    mode="outlined"
+                    label="Area"
+                    value={newAddress.area}
+                    onChangeText={text => setNewAddress({...newAddress, area: text})}
+                    style={[styles.input, { backgroundColor: theme.colors.surface, flex: 1, marginRight: 8 }]}
+                    dense
+                  />
+                  <TextInput
+                    mode="outlined"
+                    label="City"
+                    value={newAddress.city}
+                    onChangeText={text => setNewAddress({...newAddress, city: text})}
+                    style={[styles.input, { backgroundColor: theme.colors.surface, flex: 1 }]}
+                    dense
+                  />
+                </View>
+                <TextInput
+                  mode="outlined"
+                  label="Pincode"
+                  value={newAddress.pincode}
+                  onChangeText={text => setNewAddress({...newAddress, pincode: text})}
+                  style={[styles.input, { backgroundColor: theme.colors.surface }]}
+                  keyboardType="numeric"
+                  dense
+                />
+                <Button 
+                  mode="contained" 
+                  onPress={saveInlineAddress} 
+                  loading={isSavingAddress}
+                  disabled={isSavingAddress}
+                  style={{ marginTop: 12, borderRadius: 8 }}
+                >
+                  Save Address
+                </Button>
+              </ScrollView>
+            </View>
           )}
-          <Button 
-            mode="contained-tonal" 
-            icon="plus" 
-            style={{ marginTop: 16 }}
-            onPress={() => {
-              setLocationModalVisible(false);
-              navigation.navigate('Profile');
-            }}
-          >
-            Add New Address
-          </Button>
         </Modal>
       </Portal>
 
@@ -303,7 +543,7 @@ const styles = StyleSheet.create({
   largeIconMargin: { margin: 0, marginRight: 8, padding: 0, width: 32, height: 32 },
   locationText: { color: 'white', fontWeight: '500', flexShrink: 1 },
   avatarPlaceholder: { width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)' },
-  searchBar: { backgroundColor: 'white', borderRadius: 30, height: 48 },
+  searchBar: { borderRadius: 30, height: 48 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, marginTop: 24, marginBottom: 12 },
   specialTitle: { fontWeight: 'bold', fontSize: 18 },
   seeAllText: { color: '#0093D9' },
@@ -328,34 +568,41 @@ const styles = StyleSheet.create({
   quickActions: { paddingHorizontal: 16, marginTop: 16 },
   bookButton: { borderRadius: 30 },
   sectionTitle: { paddingHorizontal: 16, marginTop: 24, marginBottom: 12, fontWeight: 'bold', fontSize: 18 },
-  activeOrderCard: { marginHorizontal: 16, borderRadius: 12, backgroundColor: '#f8f9fa' },
+  activeOrderCard: { marginHorizontal: 16, borderRadius: 12 },
   orderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   trackButton: { marginTop: 12, alignSelf: 'flex-start', borderRadius: 8 },
-  servicesScroll: { paddingLeft: 16 },
-  serviceItemContainer: {
-    alignItems: 'center',
-    width: 72,
-    marginRight: 16,
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    justifyContent: 'space-between',
   },
-  serviceIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#F5F5F5',
+  serviceCard: {
+    width: (width - 48) / 2, // 2 cols with 16 padding on sides and 16 middle gap
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  serviceCardImage: {
+    width: '100%',
+    height: 120,
+  },
+  serviceCardContent: {
+    padding: 12,
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  serviceImage: {
-    width: 32,
-    height: 32,
-  },
-  serviceText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#333',
   },
   packagesScroll: { paddingLeft: 16 },
-  packageCard: { width: 160, marginRight: 16, borderRadius: 16, backgroundColor: 'white' },
-  modalContainer: { backgroundColor: 'white', padding: 20, margin: 20, borderRadius: 16 }
+  packageCard: { width: 160, marginRight: 16, borderRadius: 16 },
+  modalContainer: { padding: 20, margin: 20, borderRadius: 16, maxHeight: '80%' },
+  mapModalContainer: { height: '85%', maxHeight: '85%', padding: 16 },
+  mapContainer: { height: 200, borderRadius: 12, overflow: 'hidden', marginTop: 8 },
+  map: { flex: 1 },
+  myLocationButton: { position: 'absolute', bottom: 8, right: 8, elevation: 4 },
+  input: { marginBottom: 8, fontSize: 14 }
 });

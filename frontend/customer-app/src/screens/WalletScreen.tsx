@@ -91,9 +91,9 @@ export default function WalletScreen() {
 
         {/* Transaction History */}
         <Text variant="titleMedium" style={styles.sectionTitle}>Transaction History</Text>
-        <Surface style={styles.transactionsSurface} elevation={1}>
+        <Surface style={[styles.transactionsSurface, { backgroundColor: theme.colors.surface }]} elevation={1}>
           {transactions.length === 0 ? (
-            <Text style={{ textAlign: 'center', margin: 24, color: 'gray' }}>No transactions found.</Text>
+            <Text style={{ textAlign: 'center', margin: 24, color: theme.colors.onSurfaceVariant }}>No transactions found.</Text>
           ) : (
             transactions.map((tx, index) => (
               <View key={tx.id || index}>
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   walletCard: { backgroundColor: '#0093D9', borderRadius: 16, marginBottom: 24 },
   addMoneyBtn: { alignSelf: 'flex-start', borderRadius: 12, marginTop: 8 },
   sectionTitle: { fontWeight: 'bold', marginBottom: 12 },
-  transactionsSurface: { backgroundColor: 'white', borderRadius: 12, overflow: 'hidden' },
+  transactionsSurface: { borderRadius: 12, overflow: 'hidden' },
   bannerCardGradient: { borderRadius: 16, padding: 16, marginBottom: 16 },
   badgeContainer: { backgroundColor: 'white', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginBottom: 12 },
   badgeText: { fontSize: 10, fontWeight: 'bold', color: 'black' },

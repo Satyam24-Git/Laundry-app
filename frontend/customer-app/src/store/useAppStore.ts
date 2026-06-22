@@ -12,6 +12,9 @@ interface AppState {
   walletBalance: number;
   loading: boolean;
   error: string | null;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  updateUser: (userData: any) => Promise<boolean>;
   fetchUser: () => Promise<void>;
   fetchAddresses: () => Promise<void>;
   fetchServices: () => Promise<void>;
@@ -34,6 +37,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   walletBalance: 0,
   loading: false,
   error: null,
+  theme: 'light',
+
+  toggleTheme: () => set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
+
+  updateUser: async (userData: any) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await apiClient.put('/users/me', userData);
+      set({ user: response.data, loading: false });
+      return true;
+    } catch (err: any) {
+      set({ error: err.message, loading: false });
+      return false;
+    }
+  },
 
   fetchUser: async () => {
     set({ loading: true, error: null });

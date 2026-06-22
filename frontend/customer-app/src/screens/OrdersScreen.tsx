@@ -50,10 +50,10 @@ export default function OrdersScreen() {
         {loading && orders.length === 0 ? (
           <ActivityIndicator style={{ marginTop: 24 }} />
         ) : displayOrders.length === 0 ? (
-          <Text style={{ textAlign: 'center', marginTop: 24, color: 'gray' }}>No {value} orders found.</Text>
+          <Text style={{ textAlign: 'center', marginTop: 24, color: theme.colors.onSurfaceVariant }}>No {value} orders found.</Text>
         ) : (
           displayOrders.map((order, index) => (
-            <Card key={order.id || index} style={styles.orderCard} mode={value === 'active' ? "elevated" : "outlined"}>
+            <Card key={order.id || index} style={[styles.orderCard, { backgroundColor: theme.colors.surface }]} mode={value === 'active' ? "elevated" : "outlined"}>
               <Card.Content>
                 <View style={styles.rowBetween}>
                   <Text variant="titleMedium" style={{ fontWeight: 'bold' }}>Order #{String(order.id).substring(0, 8)}</Text>
@@ -65,7 +65,7 @@ export default function OrdersScreen() {
                     {order.status}
                   </Chip>
                 </View>
-                <Text variant="bodySmall" style={styles.dateText}>
+                <Text variant="bodySmall" style={[styles.dateText, { color: theme.colors.onSurfaceVariant }]}>
                   {value === 'active' ? `Placed on ${new Date(order.created_at).toLocaleDateString()}` : `Delivered on ${new Date(order.created_at).toLocaleDateString()}`}
                 </Text>
                 
@@ -74,19 +74,19 @@ export default function OrdersScreen() {
                 {value === 'active' && (
                   <>
                     <Text variant="labelMedium" style={{ fontWeight: 'bold' }}>Services Selected:</Text>
-                    <Text variant="bodySmall" style={{ color: 'gray' }}>{order.order_items?.length ? order.order_items.map((i: any) => i.service?.name).join(', ') : 'Standard order'}</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{order.order_items?.length ? order.order_items.map((i: any) => i.service?.name).join(', ') : 'Standard order'}</Text>
                     <Divider style={styles.divider} />
                     
                     <View style={styles.timelineContainer}>
                       {['Placed', 'Picked Up', 'Washing', 'Delivered'].map((step, idx, arr) => (
                         <View key={idx} style={styles.timelineStep}>
                           <View style={[styles.dot, idx <= 1 ? { backgroundColor: theme.colors.primary } : {}]} />
-                          <Text variant="labelSmall" style={[{ fontSize: 10 }, idx <= 1 ? { color: theme.colors.primary, fontWeight: 'bold' } : { color: 'gray' }]}>{step}</Text>
+                          <Text variant="labelSmall" style={[{ fontSize: 10 }, idx <= 1 ? { color: theme.colors.primary, fontWeight: 'bold' } : { color: theme.colors.onSurfaceVariant }]}>{step}</Text>
                           {idx !== arr.length - 1 && <View style={[styles.line, idx < 1 ? { backgroundColor: theme.colors.primary } : {}]} />}
                         </View>
                       ))}
                     </View>
-                    <Text variant="bodySmall" style={{ color: 'gray', marginTop: 12 }}>Expected Delivery: {order.expected_delivery_date ? new Date(order.expected_delivery_date).toLocaleDateString() : 'TBD'}</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>Expected Delivery: {order.expected_delivery_date ? new Date(order.expected_delivery_date).toLocaleDateString() : 'TBD'}</Text>
                   </>
                 )}
 
@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   header: { padding: 16, paddingBottom: 8 },
   segmentedContainer: { paddingHorizontal: 16, marginBottom: 16 },
   scrollContent: { paddingHorizontal: 16, paddingBottom: 24 },
-  orderCard: { marginBottom: 16, borderRadius: 12, backgroundColor: 'white' },
+  orderCard: { marginBottom: 16, borderRadius: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  dateText: { color: 'gray', marginTop: 4 },
+  dateText: { marginTop: 4 },
   divider: { marginVertical: 12 },
   timelineContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
   timelineStep: { alignItems: 'center', flex: 1 },
